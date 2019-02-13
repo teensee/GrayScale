@@ -14,6 +14,10 @@ namespace CBwinForm.Core
             Image = image;
         }
 
+        /// <summary>
+        /// Sets gray-scale filter 
+        /// </summary>
+        /// <returns></returns>
         public Bitmap SetGrayScale()
         {
             Rectangle rect = new Rectangle(0, 0, Image.Width, Image.Height);
@@ -22,7 +26,7 @@ namespace CBwinForm.Core
 
             IntPtr intPtr = bitData.Scan0;
 
-            int numBytes = Image.Width * Image.Height * 3;
+            int numBytes = bitData.Height * bitData.Stride;
             byte[] rgbValues = new byte[numBytes];
 
             Marshal.Copy(intPtr, rgbValues, 0, numBytes);
@@ -52,7 +56,6 @@ namespace CBwinForm.Core
 
             IntPtr intPtr = bitData.Scan0;
 
-
             int numBytes = bitData.Stride * bitData.Height;
             byte[] rgbValues = new byte[numBytes];
 
@@ -60,7 +63,7 @@ namespace CBwinForm.Core
 
             double coef = 0.012;
             byte newbrightness = 0;
-            for (int i = 0; i < numBytes; i++)
+            for (int i = 0; i < numBytes; i+=3)
             {
                 var z = Math.Pow(rgbValues[i], 2) * coef;
 
@@ -68,7 +71,7 @@ namespace CBwinForm.Core
 
                 newbrightness = Convert.ToByte(z);
 
-                rgbValues[i] = newbrightness;
+                rgbValues[i] = rgbValues[i + 1] = rgbValues[i + 2] = newbrightness;
             }
 
             Marshal.Copy(rgbValues, 0, intPtr, numBytes);

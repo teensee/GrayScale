@@ -1,6 +1,8 @@
 ﻿using CBwinForm.Core;
 using System;
 using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
 using System.Windows.Forms;
 
 namespace CBwinForm
@@ -17,7 +19,6 @@ namespace CBwinForm
         private void OpenImage_Click(object sender, EventArgs e)
         {
             OpenFileDialog openFile = new OpenFileDialog();
-
 
             openFile.Filter = "Image Files(*.BMP;*.JPG;*.GIF;*.PNG)|*.BMP;*.JPG;*.GIF;*.PNG|All files (*.*)|*.*";
 
@@ -48,5 +49,32 @@ namespace CBwinForm
             pictureBox2.Image = processedImage.ChangeBrightness();
         }
 
+        private void button3_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog saveFile = new SaveFileDialog();
+            saveFile.Filter = "Image Files(*.BMP;*.JPG;*.PNG)|*.BMP;*.JPG;*.PNG";
+
+            ImageFormat format = ImageFormat.Png;
+
+            if(saveFile.ShowDialog() == DialogResult.OK)
+            {
+                string ext = Path.GetExtension(saveFile.FileName);
+
+                switch (ext)
+                {
+                    case ".jpg":
+                        format = ImageFormat.Jpeg;
+                        break;
+                    case ".bmp":
+                        format = ImageFormat.Bmp;
+                        break;
+                    default:
+                        break;
+                }
+
+                pictureBox2.Image.Save(saveFile.FileName, format);
+            }
+            saveFile.Dispose();
+        }
     }
 }
