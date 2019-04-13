@@ -15,17 +15,13 @@ namespace CBwinForm.Core
         public Bitmap Image { get; set; }
 
         /// <summary>
-        /// Gray Scale vanila image
-        /// </summary>
-        public Bitmap GrayScaleImage { get; set; }
-
-        /// <summary>
-        /// Rectangle of our image
+        /// Тоже разрешение пикчи,но храним в <see cref="Rectangle"/> 
+        /// для дальнейшего использования в <see cref="BitmapData"/>
         /// </summary>
         public Rectangle Rect { get; set; }
 
         /// <summary>
-        /// Width*Height
+        /// Разрешение пикчи
         /// </summary>
         public int Resolution { get; set; }
 
@@ -55,14 +51,23 @@ namespace CBwinForm.Core
 
         #region Private Members
 
+        /// <summary>
+        /// Массив с "оригинальным" цветным изображением
+        /// </summary>
         private byte[] originalByteImage;
 
-        private byte[] grayScaledByteArray;
-
+        /// <summary>
+        /// Массив хранящий "оригинальную" чб картинку
+        /// </summary>
         private byte[] originalGrayScaleImage;
 
         /// <summary>
-        /// Store R*0.299 + G*0.587 + B*0.114 
+        /// Массив с которым работает прога
+        /// </summary>
+        private byte[] grayScaledByteArray;
+
+        /// <summary>
+        /// вычисляемое значение для чб R*0.299 + G*0.587 + B*0.114 
         /// </summary>
         private double val;
 
@@ -79,6 +84,10 @@ namespace CBwinForm.Core
 
         #region Constructor
 
+        /// <summary>
+        /// Конструктор
+        /// </summary>
+        /// <param name="image"></param>
         public SimpleImageProcessor(Bitmap image)
         {
             Image = image;
@@ -98,46 +107,17 @@ namespace CBwinForm.Core
         /// <returns></returns>
         public Bitmap SetGrayScale()
         {
-            #region test
-            //BitmapData bitData = Image.LockBits(Rect, ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
+            //Занимаемся чисткой
+            Array.Clear(FrequencyX, 0, FrequencyX.Length);
 
-            //IntPtr intPtr = bitData.Scan0;
-
-            //int numBytes = bitData.Height * bitData.Stride;
-            //byte[] rgbValues = new byte[numBytes];
-
-            //Marshal.Copy(intPtr, rgbValues, 0, numBytes);
-
-            //for (int i = 0; i < numBytes; i += 3)
-            //{
-            //    val = rgbValues[i] * 0.299 + rgbValues[i + 1] * 0.587 + rgbValues[i + 2] * 0.114;
-            //    color_b = 0;
-
-            //    color_b = Convert.ToByte(val);
-
-            //    //Частота 
-            //    FrequencyX[color_b]++;
-
-            //    rgbValues[i] = rgbValues[i + 1] = rgbValues[i + 2] = color_b;
-            //}
-
-            //Marshal.Copy(rgbValues, 0, intPtr, numBytes);
-
-            //Image.UnlockBits(bitData);
-
-            //CalculateSigmaY();
-
-            //return Image; 
-            #endregion
-
-            for (int i = 0; i < originalByteImage.Length; i += 3)
+            for (int i = 0; i < originalByteImage.Length -1; i += 3)
             {
                 val = originalByteImage[i] * 0.299 + originalByteImage[i + 1] * 0.587 + originalByteImage[i + 2] * 0.114;
                 color_b = 0;
 
                 color_b = Convert.ToByte(val);
 
-                //Частота 
+                //Распределяемся по ячейкам,Господа! 
                 FrequencyX[color_b]++;
 
                 grayScaledByteArray[i] = grayScaledByteArray[i + 1] = grayScaledByteArray[i + 2] = color_b;
@@ -149,97 +129,102 @@ namespace CBwinForm.Core
             return ByteArrayToBitmap(grayScaledByteArray);
         }
 
+        /// <summary>
+        /// Считаем дисперсию или
+        /// SigmaY = sqrt[(y^2) - (y)^2]
+        /// [] - скобки заменяют обычные в математике ()
+        /// а () показывают что это "среднее" из-за отсутсвия возможности вставки формулой
+        /// </summary>
+        public void CalculateSigmaY()
+        {
+            //Дропаем оба значения в ноль :)
+            double yFirst = 0.0f;
+            double ySecond = 0.0f;
+
+            //double test = 0.0f;
+            for (int i = 0; i < FrequencyX.Length; i++)
+            {
+                //Распределение пикселей
+                //Значение из массива Freq делится на разрешение
+                ColorAllocation[i] = FrequencyX[i] / (double)Resolution;
+
+                //Для первого считается так: m[x^2] = 0^2*p0 + 1^2*p1 + 2^2*p2 ... n^2*pN;
+                yFirst += i * i * ColorAllocation[i];
+
+                //Второй y считается: m^2[x] = (0*p0 + 1*p1 + ... n*pN)^2
+                ySecond += i * ColorAllocation[i];
+
+                //Коммент на удаление
+                //test += ColorAllocation[i];
+                //Эта переменная нужна для того,чтобы убедиться что расчет идет +- верно
+                //В моем случае погрешность вроде бы не большая,но нужно будет убедиться в последствии 
+                //test == 1, у меня 1.0000000000000007
+            }
+
+            ySecond *= ySecond;
+
+            SigmaY = Math.Sqrt((yFirst - ySecond));
+        }
+
         #endregion
 
         public Bitmap SetNewBrightness(double cf)
         {
-            #region Test
-            //var calculatedCoef = cf;
-
-            //BitmapData bitData = Image.LockBits(Rect, ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
-
-            //IntPtr intPtr = bitData.Scan0;
-
-            //int numBytes = bitData.Stride * bitData.Height;
-            //byte[] rgbValues = new byte[numBytes];
-
-            //Marshal.Copy(intPtr, rgbValues, 0, numBytes);
-
-            //byte newbrightness = 0;
-            //for (int i = 0; i < numBytes; i += 3)
-            //{
-            //    var z = Math.Pow(rgbValues[i], 2) * calculatedCoef;
-
-            //    if (z > 255) z = 255;
-
-            //    newbrightness = Convert.ToByte(z);
-
-            //    rgbValues[i] = rgbValues[i + 1] = rgbValues[i + 2] = newbrightness;
-            //}
-
-            //Marshal.Copy(rgbValues, 0, intPtr, numBytes);
-            //Image.UnlockBits(bitData);
-
-            //return Image;
-            #endregion
-
+            //Копируем "оригинальное" чб во временный массив
             Array.Copy(originalGrayScaleImage, grayScaledByteArray, grayScaledByteArray.Length);
 
+            //Очищаем массив с частотой пикселей
+            Array.Clear(FrequencyX, 0, FrequencyX.Length);
+
+            //Обнуляем значение яркости
             byte newbrightness = 0;
+            
+            //Поехали..
             for (int i = 0; i < grayScaledByteArray.Length; i += 3)
             {
+                //z = k*y^2
                 var z = Math.Pow(grayScaledByteArray[i], 2) * cf;
 
+                //Если z > 255,то..
                 if (z > 255) z = 255;
 
+                //Приводим к типу байт
                 newbrightness = Convert.ToByte(z);
 
+                //Записываем значение в массив частот
+                FrequencyX[newbrightness]++;
+
+                //Обновляем 3 канала
                 grayScaledByteArray[i] = grayScaledByteArray[i + 1] = grayScaledByteArray[i + 2] = newbrightness;
             }
 
+            //Ретерн:3
             return ByteArrayToBitmap(grayScaledByteArray);
         }
 
-        public void CalculateSigmaY()
-        {
-            double firstTest = 0.0f;
-            double secondTest = 0.0f;
-
-            double test = 0.0f;
-            for (int i = 0; i < FrequencyX.Length; i++)
-            {
-                ColorAllocation[i] = FrequencyX[i] / (double)Resolution;
-
-                firstTest += Math.Pow(i, 2) * ColorAllocation[i];
-                secondTest += i * ColorAllocation[i];
-
-                test += ColorAllocation[i];
-            }
-
-            secondTest *= secondTest;
-
-            SigmaY = Math.Sqrt((firstTest - secondTest));
-        }
-
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="ScrollBarSelectedValue"></param>
+        /// <returns></returns>
         public double CalculateNewCoef(int ScrollBarSelectedValue)
         {
             double SigmaZ = ScrollBarSelectedValue;
 
-            double firstVal = 0.0f;
-            double SecondVal = 0.0f;
+            double yFirst = 0.0f;
+            double ySecond = 0.0f;
 
             for (int i = 0; i < FrequencyX.Length; i++)
             {
-                //ColorAllocation[i] = FrequencyX[i] / (double)Resolution;
-                firstVal += Math.Pow(i, 4) * ColorAllocation[i];
-                SecondVal += Math.Pow(i, 2) * ColorAllocation[i];
+                yFirst += Math.Pow(i, 4) * ColorAllocation[i];
+                ySecond += Math.Pow(i, 2) * ColorAllocation[i];
             }
 
-            SecondVal *= SecondVal;
+            ySecond *= ySecond;
 
-            var LastCoef = Math.Sqrt(firstVal - SecondVal);
+            var despersia = Math.Sqrt(yFirst - ySecond);
 
-            coef = SigmaZ / LastCoef;
+            coef = SigmaZ / despersia;
 
             return coef;
         }
@@ -254,7 +239,7 @@ namespace CBwinForm.Core
 
             IntPtr ptr = bmpData.Scan0;
 
-            int bytes = bmpData.Stride * bmpData.Height;
+            int bytes = Rect.Width * bmpData.Height * 3;
 
             originalByteImage = new byte[bytes];
             grayScaledByteArray = new byte[bytes];
